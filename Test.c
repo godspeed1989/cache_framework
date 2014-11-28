@@ -12,6 +12,10 @@
 #define CACHE_POOL_SIZE_MB      ((OFFSET_T)5)
 #define CACHE_POOL_NUM_BLOCKS   ((CACHE_POOL_SIZE_MB << 20)/(BLOCK_SIZE))
 
+#define     LRU     1
+#define     LRFU    1
+
+#if LRU
 #include "LRU.h"
 static CACHE_POOL LRU_Cache_Pool;
 static Cache_Operations LRU_Operations =
@@ -27,10 +31,35 @@ static Cache_Operations LRU_Operations =
     .ForEachCacheBlock      = ForEachCacheBlock_LRU,
 };
 static LRU_CACHE_POOL_EXT LRU_Pool_Ext;
+#endif
 
+#if LRFU
+#include "LRFU.h"
+static CACHE_POOL LRFU_Cache_Pool;
+static Cache_Operations LRFU_Operations =
+{
+    .Init                   = Init_LRFU,
+    .Destroy                = Destroy_LRFU,
+    .AddNewBlockToPool      = AddNewBlockToPool_LRFU,
+    .DeleteOneBlockFromPool = DeleteOneBlockFromPool_LRFU,
+    .QueryPoolByIndex       = QueryPoolByIndex_LRFU,
+    .FindBlockToReplace     = FindBlockToReplace_LRFU,
+    .IncreaseBlockReference = IncreaseBlockReference_LRFU,
+    .IsFull                 = IsFull_LRFU,
+    .ForEachCacheBlock      = ForEachCacheBlock_LRFU,
+};
+static LRFU_CACHE_POOL_EXT LRFU_Pool_Ext;
+#endif
+
+// Cache Pools using different replace algorithm
 static PCACHE_POOL Cache_Pools[] =
 {
+#if LRU
     &LRU_Cache_Pool,
+#endif
+#if LRFU
+    &LRFU_Cache_Pool,
+#endif
     NULL
 };
 
@@ -41,16 +70,36 @@ void do_test_all (void);
 
 int main ()
 {
+    printf("MAIN_MEM_SIZE_BYTE:     %lu\n", MAIN_MEM_SIZE_BYTE);
+    printf("BLOCK_SIZE:             %lu\n", BLOCK_SIZE);
+    printf("CACHE_POOL_NUM_BLOCKS:  %lu\n", CACHE_POOL_NUM_BLOCKS);
+    printf("\n");
+
+#if LRU
     if (InitCachePool(&LRU_Cache_Pool, CACHE_POOL_NUM_BLOCKS,
                       &LRU_Operations, &LRU_Pool_Ext, "LRU") == FALSE)
     {
         printf("Init LRU Cache Pool Error\n");
         return -1;
     }
+#endif
+#if LRFU
+    if (InitCachePool(&LRFU_Cache_Pool, CACHE_POOL_NUM_BLOCKS,
+                      &LRFU_Operations, &LRFU_Pool_Ext, "LRFU") == FALSE)
+    {
+        printf("Init LRFU Cache Pool Error\n");
+        return -1;
+    }
+#endif
 
     do_test_all();
 
+#if LRU
     DestroyCachePool(&LRU_Cache_Pool);
+#endif
+#if LRFU
+    DestroyCachePool(&LRFU_Cache_Pool);
+#endif
     return 0;
 }
 
@@ -114,7 +163,7 @@ void zipf_pick(int num, int Range, double A, int *out);
 
 void do_test_all (void)
 {
-    #define         RUN_SECOND      (3)
+    #define         RUN_SECOND      (5)
     #define         MAX_REQ_BLK     (100)
     #define         BUFFER_SIZE     (MAX_REQ_BLK*BLOCK_SIZE)
     #define         LOOP_SIZE       (200)
@@ -132,14 +181,14 @@ void do_test_all (void)
     ReqBuffer = (PUCHAR)malloc(BUFFER_SIZE);
     Main_Mem = (PUCHAR)malloc(MAIN_MEM_SIZE_BYTE);
     Verify_Mem = (PUCHAR)malloc(MAIN_MEM_SIZE_BYTE);
+    assert(ReqBuffer && Main_Mem && Verify_Mem);
+
     memset(ReqBuffer, 0, BUFFER_SIZE);
     memset(Main_Mem, 0, MAIN_MEM_SIZE_BYTE);
     memset(Verify_Mem, 0, MAIN_MEM_SIZE_BYTE);
-    assert(ReqBuffer && Main_Mem && Verify_Mem);
 
     for (;;)
     {
-        loop++;
         // run RUN_SECONDS test
         if (time(NULL)-start > RUN_SECOND)
             break;
@@ -147,26 +196,41 @@ void do_test_all (void)
         zipf_pick(LOOP_SIZE, 100, 0.25, zipf_out);
         for (i = 0; i < LOOP_SIZE; i++)
         {
+            // generate pseudo request
             type = rand() & 1;
-            Offset = (zipf_out[i] % 100) * MAIN_MEM_SIZE_BYTE / 100;
+            Offset = zipf_out[i] * MAIN_MEM_SIZE_BYTE / 100;
             Length = (rand() % MAX_REQ_BLK) * BLOCK_SIZE + rand() % BLOCK_SIZE;
+            assert(MAIN_MEM_SIZE_BYTE > Offset);
             if (Length > (MAIN_MEM_SIZE_BYTE - Offset))
                 Length = MAIN_MEM_SIZE_BYTE - Offset;
             data_rand(ReqBuffer, Length);
 
-            do_request(type, ReqBuffer, Offset, Length);
             // apply request to verification memory
             if (type == WRITE)
+            {
                 memcpy(Verify_Mem+Offset, ReqBuffer, Length);
+            }
+
+            do_request(type, ReqBuffer, Offset, Length);
         }
+
+        loop++;
     }
 
     printf("do_test(): %lu loops in %lu s\n",
-            loop, (unsigned long)(time(NULL)-start));
+            loop*LOOP_SIZE, (unsigned long)(time(NULL)-start));
 
     printf("Verify Main Memory......\n");
     if (memcmp(Main_Mem, Verify_Mem, MAIN_MEM_SIZE_BYTE))
     {
+        FILE *vm, *mm;
+        vm = fopen("vm.hex", "wb");
+        mm = fopen("mm.hex", "wb");
+        fwrite(Verify_Mem, MAIN_MEM_SIZE_BYTE, 1, vm);
+        fwrite(Main_Mem, MAIN_MEM_SIZE_BYTE, 1, mm);
+        fclose(vm);
+        fclose(mm);
+
         printf("Error: Main_Mem != Verify_Mem\n");
         goto clean;
     }

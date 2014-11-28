@@ -17,7 +17,7 @@ InitCachePool (
     CachePool->Cache_Ops    = Cache_Ops;
     CachePool->Extend       = Extend;
     CachePool->name         = name;
-    if (CachePool->Cache_Ops->Init(Extend) == FALSE)
+    if (CachePool->Cache_Ops->Init(Extend, Size) == FALSE)
         goto l_error;
     return TRUE;
 l_error:

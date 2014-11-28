@@ -8,6 +8,7 @@
 typedef struct _LRU_CACHE_BLOCK
 {
     CACHE_BLOCK             CBlock;
+    // Extend
     struct list_head        lru;
 }LRU_CACHE_BLOCK, *PLRU_CACHE_BLOCK;
 
@@ -18,7 +19,7 @@ typedef struct _LRU_CACHE_POOL_EXT
     node*                   bpt_root;
 }LRU_CACHE_POOL_EXT, *PLRU_CACHE_POOL_EXT;
 
-BOOLEAN      Init_LRU (PVOID Ext);
+BOOLEAN      Init_LRU (PVOID Ext, CACHE_SIZE_T Size);
 VOID         Destroy_LRU (PVOID Ext);
 
 BOOLEAN      IsFull_LRU (PCACHE_POOL CachePool);

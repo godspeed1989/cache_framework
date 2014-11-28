@@ -11,8 +11,8 @@
 #define ASSERT(expr)            assert(expr)
 #define MEMCPY(dst,src,len)     memcpy(dst,src,len)
 
-#define SECTOR_SIZE             (512)
-#define NSpB                    (8)       /* Number Sectors per Block */
+#define SECTOR_SIZE             ((unsigned long)512)
+#define NSpB                    ((unsigned long)8) // Number Sectors per Block
 #define BLOCK_SIZE              (SECTOR_SIZE*NSpB)
 
 typedef unsigned long           CACHE_SIZE_T;

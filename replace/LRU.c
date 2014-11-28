@@ -1,6 +1,6 @@
 #include "LRU.h"
 
-BOOLEAN Init_LRU (PVOID Ext)
+BOOLEAN Init_LRU (PVOID Ext, CACHE_SIZE_T Size)
 {
     PLRU_CACHE_POOL_EXT PExt = (PLRU_CACHE_POOL_EXT)Ext;
 
@@ -41,6 +41,7 @@ static PLRU_CACHE_BLOCK __GetFreeBlock_LRU (PCACHE_POOL CachePool)
     {
         pLBlock = (PLRU_CACHE_BLOCK) MALLOC (sizeof(LRU_CACHE_BLOCK));
         if (pLBlock == NULL) goto l_error;
+        ZERO(pLBlock, sizeof(LRU_CACHE_BLOCK));
         // Allocate Storage Space
         pLBlock->CBlock.StorageIndex = StoragePoolAlloc(&CachePool->Storage);
         if (pLBlock->CBlock.StorageIndex == -1) goto l_error;
@@ -121,6 +122,7 @@ VOID DeleteOneBlockFromPool_LRU (PCACHE_POOL CachePool, CACHE_INDEX_T Index)
 
         StoragePoolFree(&CachePool->Storage, pBlock->StorageIndex);
         CachePool->Used--;
+        FREE(pLBlock);
     }
 }
 

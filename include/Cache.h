@@ -85,8 +85,8 @@ PCACHE_BLOCK __GetFreeBlock (PCACHE_POOL CachePool);
  */
 typedef struct _Cache_Operations
 {
-    BOOLEAN      (*Init) (PVOID);
-    VOID         (*Destroy) (PVOID);
+    BOOLEAN      (*Init) (PVOID Extend, CACHE_SIZE_T Size);
+    VOID         (*Destroy) (PVOID Extend);
     PCACHE_BLOCK (*AddNewBlockToPool) (PCACHE_POOL CachePool, CACHE_INDEX_T Index, PVOID Data, BOOLEAN Modified);
     VOID         (*DeleteOneBlockFromPool) (PCACHE_POOL CachePool, CACHE_INDEX_T Index);
     BOOLEAN      (*QueryPoolByIndex) (PCACHE_POOL CachePool, CACHE_INDEX_T Index, PCACHE_BLOCK *ppBlock);
