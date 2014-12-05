@@ -144,7 +144,7 @@ WriteUpdateCachePool (
         }
         else
         {
-            pBlock = ops->FindBlockToReplace(CachePool, Index, Buf, FALSE);
+            pBlock = ops->FindBlockToReplace(CachePool, Index, Buf, TRUE);
         }
         Buf += BLOCK_SIZE;
     }
